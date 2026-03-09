@@ -14,7 +14,7 @@
         #btn-direct { background: #4caf50; color: white; }
         #btn-spin { background: #e94560; color: white; }
         .input-box { display: none; margin-top: 20px; background: rgba(255,255,255,0.1); padding: 20px; border-radius: 15px; }
-        input { padding: 12px; width: 90%; border-radius: 5px; border: none; font-size: 1rem; margin-bottom: 15px; outline: none; }
+        input { padding: 12px; width: 85%; border-radius: 5px; border: none; font-size: 1rem; margin-bottom: 15px; outline: none; }
         .wheel-area { display: none; position: relative; width: 320px; height: 320px; margin: 30px auto; }
         .pointer { position: absolute; top: -20px; left: 50%; transform: translateX(-50%); width: 0; height: 0; border-left: 20px solid transparent; border-right: 20px solid transparent; border-top: 40px solid #fff; z-index: 20; filter: drop-shadow(0 5px 5px rgba(0,0,0,0.5)); }
         #canvas { width: 100%; height: 100%; border-radius: 50%; border: 6px solid white; transform: rotate(0deg); }
@@ -39,7 +39,7 @@
         <div id="spin-input" class="input-box">
             <input type="text" id="spin-q" placeholder="The Question?">
             <p style="font-size: 0.9rem; color: #aaa;">Options (comma se separate karo):</p>
-            <input type="text" id="options-list" placeholder="Tanu, Bhawna, Daksh, Mummy">
+            <input type="text" id="options-list" placeholder="Tanu, Bhawna, Daksh...">
             <button class="action-btn" onclick="sendSpin()">Create & Spin!</button>
         </div>
 
@@ -52,6 +52,7 @@
     </div>
 
     <script>
+        // TUMHARA FIREBASE CONFIG
         const firebaseConfig = {
             apiKey: "AIzaSyCxu_TKOqfG7rX8nZ0Z2yvLGCk9y-O7C3o",
             authDomain: "spin-fb097.firebaseapp.com",
@@ -61,7 +62,7 @@
             messagingSenderId: "258399373729",
             appId: "1:258399373729:web:9e4ccd970ead64e674e3e0"
         };
-        firebase.initializeApp(firebaseConfig);
+        if (!firebase.apps.length) { firebase.initializeApp(firebaseConfig); }
         const db = firebase.database();
 
         let currentRot = 0;
@@ -95,12 +96,13 @@
             document.getElementById('spin-input').style.display = 'none';
             document.getElementById('wheel-area').style.display = 'block';
             
-            // Start Infinite Loop
             const canvas = document.getElementById('canvas');
             canvas.style.transition = 'none';
+            
+            // Continuous spinning
             spinInt = setInterval(() => {
                 currentRot += 15;
-                canvas.style.transform = `rotate(${currentRot % 360}deg)`;
+                canvas.style.transform = `rotate(${currentRot}deg)`;
             }, 20);
         }
 
@@ -119,16 +121,15 @@
                 ctx.fillStyle = i % 2 === 0 ? "#e94560" : "#0f3460";
                 ctx.fill();
                 ctx.strokeStyle = "white";
-                ctx.lineWidth = 2;
+                ctx.lineWidth = 3;
                 ctx.stroke();
 
-                // Text
                 ctx.translate(200, 200);
                 ctx.rotate(i * arc + arc / 2);
                 ctx.textAlign = "right";
                 ctx.fillStyle = "white";
-                ctx.font = "bold 20px Arial";
-                ctx.fillText(opt, 180, 10);
+                ctx.font = "bold 22px Arial";
+                ctx.fillText(opt, 170, 8);
                 ctx.restore();
             });
         }
@@ -142,23 +143,29 @@
                     clearInterval(spinInt);
                     const canvas = document.getElementById('canvas');
                     
-                    // Stop Logic: Calculate target angle
                     const numOpts = data.options.length;
                     const arcDeg = 360 / numOpts;
                     const targetIdx = data.options.indexOf(data.result);
                     
-                    // Degree to move the chosen slice to the top pointer
-                    // Pointer is at -90 degrees in canvas logic
-                    const stopAt = (360 - (targetIdx * arcDeg)) - (arcDeg / 2);
-                    const finalSpin = (Math.floor(currentRot / 360) * 360) + (360 * 5) + stopAt;
+                    // Canvas 3 baje (0 deg) se draw hota hai, pointer 12 baje (270 deg) par hai.
+                    // Center of target slice:
+                    const sliceCenter = (targetIdx * arcDeg) + (arcDeg / 2);
+                    
+                    // Rotate kitna karna hai taaki sliceCenter 270 deg (top) par aaye:
+                    let targetAngle = (270 - sliceCenter) % 360;
+                    if (targetAngle < 0) targetAngle += 360;
+
+                    // Current rotation ko nearest 360 multiple par set karo aur targetAngle add karo
+                    const extraSpins = 360 * 4; 
+                    const finalSpin = currentRot + (360 - (currentRot % 360)) + extraSpins + targetAngle;
 
                     canvas.style.transition = 'transform 4s cubic-bezier(0.1, 0.7, 0.1, 1)';
                     canvas.style.transform = `rotate(${finalSpin}deg)`;
-                    currentRot = finalSpin;
+                    currentRot = finalSpin; // Agli baar ke liye update
 
                     setTimeout(() => {
                         document.getElementById('final-result').innerText = `Jawab hai: ${data.result}!`;
-                    }, 4200);
+                    }, 4100);
                 }
             }
         });

@@ -7,48 +7,45 @@
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
     <style>
-        body { font-family: 'Segoe UI', sans-serif; background: #1a1a2e; color: white; text-align: center; margin: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; }
+        body { font-family: 'Segoe UI', sans-serif; background: #1a1a2e; color: white; text-align: center; margin: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; overflow-x: hidden; }
         .container { width: 90%; max-width: 500px; padding: 20px; }
         h1 { color: #00f2fe; text-shadow: 0 0 10px #00f2fe; }
-        
-        .mode-selection button { padding: 15px; margin: 10px; font-size: 1.1rem; border-radius: 10px; border: none; cursor: pointer; transition: 0.3s; width: 80%; }
+        .mode-selection button { padding: 15px; margin: 10px; font-size: 1.1rem; border-radius: 10px; border: none; cursor: pointer; transition: 0.3s; width: 100%; max-width: 300px; font-weight: bold; }
         #btn-direct { background: #4caf50; color: white; }
         #btn-spin { background: #e94560; color: white; }
-
-        .input-box { display: none; margin-top: 20px; }
-        input { padding: 12px; width: 80%; border-radius: 5px; border: none; font-size: 1rem; margin-bottom: 10px; }
-        
-        .wheel-area { display: none; position: relative; width: 300px; height: 300px; margin: 30px auto; }
-        .pointer { position: absolute; top: -30px; left: 50%; transform: translateX(-50%); width: 0; height: 0; border-left: 20px solid transparent; border-right: 20px solid transparent; border-top: 40px solid #fff; z-index: 10; }
-        #canvas { width: 100%; height: 100%; border-radius: 50%; border: 5px solid white; transition: transform 4s cubic-bezier(0.1, 0.7, 0.1, 1); }
-        
-        #final-result { font-size: 2rem; color: #ffd700; margin-top: 20px; font-weight: bold; }
+        .input-box { display: none; margin-top: 20px; background: rgba(255,255,255,0.1); padding: 20px; border-radius: 15px; }
+        input { padding: 12px; width: 90%; border-radius: 5px; border: none; font-size: 1rem; margin-bottom: 15px; outline: none; }
+        .wheel-area { display: none; position: relative; width: 320px; height: 320px; margin: 30px auto; }
+        .pointer { position: absolute; top: -20px; left: 50%; transform: translateX(-50%); width: 0; height: 0; border-left: 20px solid transparent; border-right: 20px solid transparent; border-top: 40px solid #fff; z-index: 20; filter: drop-shadow(0 5px 5px rgba(0,0,0,0.5)); }
+        #canvas { width: 100%; height: 100%; border-radius: 50%; border: 6px solid white; transform: rotate(0deg); }
+        #final-result { font-size: 2.2rem; color: #ffd700; margin-top: 20px; font-weight: bold; min-height: 50px; text-shadow: 0 0 15px rgba(255,215,0,0.5); }
+        .action-btn { background: #00f2fe; color: #1a1a2e; padding: 12px 25px; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; }
     </style>
 </head>
 <body>
 
-    <div class="container" id="main-ui">
+    <div class="container">
         <h1>🔮 The Oracle</h1>
-        <div class="mode-selection" id="mode-select">
+        <div id="mode-select" class="mode-selection">
             <button id="btn-direct" onclick="showDirect()">1. Direct Answer 💬</button>
             <button id="btn-spin" onclick="showSpin()">2. Spin the Wheel 🎡</button>
         </div>
 
         <div id="direct-input" class="input-box">
-            <input type="text" id="direct-q" placeholder="Type your question here...">
-            <button onclick="sendDirect()" style="background:#4caf50; color:white; padding:10px 20px; border:none; border-radius:5px;">Ask!</button>
+            <input type="text" id="direct-q" placeholder="Pucho apna sawal...">
+            <button class="action-btn" onclick="sendDirect()">Ask Universe!</button>
         </div>
 
         <div id="spin-input" class="input-box">
             <input type="text" id="spin-q" placeholder="The Question?">
-            <p>Enter options (comma separated):</p>
-            <input type="text" id="options-list" placeholder="Pizza, Burger, Pasta...">
-            <button onclick="sendSpin()" style="background:#e94560; color:white; padding:10px 20px; border:none; border-radius:5px;">Create Wheel & Spin!</button>
+            <p style="font-size: 0.9rem; color: #aaa;">Options (comma se separate karo):</p>
+            <input type="text" id="options-list" placeholder="Tanu, Bhawna, Daksh, Mummy">
+            <button class="action-btn" onclick="sendSpin()">Create & Spin!</button>
         </div>
 
         <div class="wheel-area" id="wheel-area">
             <div class="pointer"></div>
-            <canvas id="canvas" width="300" height="300"></canvas>
+            <canvas id="canvas" width="400" height="400"></canvas>
         </div>
 
         <div id="final-result"></div>
@@ -67,6 +64,10 @@
         firebase.initializeApp(firebaseConfig);
         const db = firebase.database();
 
+        let currentRot = 0;
+        let spinInt;
+        let wheelOptions = [];
+
         function showDirect() { 
             document.getElementById('mode-select').style.display = 'none';
             document.getElementById('direct-input').style.display = 'block';
@@ -79,54 +80,85 @@
         function sendDirect() {
             const q = document.getElementById('direct-q').value;
             db.ref('oracle').set({ mode: 'direct', question: q, status: 'waiting' });
-            document.getElementById('final-result').innerText = "Waiting for the Universe... ✨";
+            document.getElementById('final-result').innerText = "Universe soch raha hai... ✨";
         }
 
         function sendSpin() {
             const q = document.getElementById('spin-q').value;
-            const opts = document.getElementById('options-list').value.split(',').map(s => s.trim());
-            db.ref('oracle').set({ mode: 'spin', question: q, options: opts, status: 'spinning' });
-            drawWheel(opts);
+            const rawOpts = document.getElementById('options-list').value;
+            wheelOptions = rawOpts.split(',').map(s => s.trim()).filter(s => s !== "");
+            
+            if(wheelOptions.length < 2) return alert("Kam se kam 2 options daalo!");
+
+            db.ref('oracle').set({ mode: 'spin', question: q, options: wheelOptions, status: 'spinning' });
+            drawWheel(wheelOptions);
             document.getElementById('spin-input').style.display = 'none';
             document.getElementById('wheel-area').style.display = 'block';
-            startInfiniteSpin();
-        }
-
-        // Infinite Spin logic
-        let currentRot = 0;
-        let spinInt;
-        function startInfiniteSpin() {
+            
+            // Start Infinite Loop
+            const canvas = document.getElementById('canvas');
+            canvas.style.transition = 'none';
             spinInt = setInterval(() => {
                 currentRot += 15;
-                document.getElementById('canvas').style.transform = `rotate(${currentRot}deg)`;
+                canvas.style.transform = `rotate(${currentRot % 360}deg)`;
             }, 20);
         }
 
-        // Draw dynamic wheel
         function drawWheel(options) {
             const canvas = document.getElementById('canvas');
             const ctx = canvas.getContext('2d');
-            const arc = Math.PI / (options.length / 2);
+            const numOpts = options.length;
+            const arc = (2 * Math.PI) / numOpts;
+            ctx.clearRect(0,0,400,400);
+
             options.forEach((opt, i) => {
+                ctx.save();
+                ctx.beginPath();
+                ctx.moveTo(200, 200);
+                ctx.arc(200, 200, 200, i * arc, (i + 1) * arc);
                 ctx.fillStyle = i % 2 === 0 ? "#e94560" : "#0f3460";
-                ctx.beginPath(); ctx.moveTo(150, 150); ctx.arc(150, 150, 150, i * arc, (i + 1) * arc); ctx.fill();
-                ctx.save(); ctx.fillStyle = "white"; ctx.translate(150, 150); ctx.rotate(i * arc + arc / 2);
-                ctx.fillText(opt, 70, 5); ctx.restore();
+                ctx.fill();
+                ctx.strokeStyle = "white";
+                ctx.lineWidth = 2;
+                ctx.stroke();
+
+                // Text
+                ctx.translate(200, 200);
+                ctx.rotate(i * arc + arc / 2);
+                ctx.textAlign = "right";
+                ctx.fillStyle = "white";
+                ctx.font = "bold 20px Arial";
+                ctx.fillText(opt, 180, 10);
+                ctx.restore();
             });
         }
 
         db.ref('oracle').on('value', snap => {
             const data = snap.val();
-            if (data.status === 'resolved') {
+            if (data && data.status === 'resolved') {
                 if (data.mode === 'direct') {
                     document.getElementById('final-result').innerText = data.result;
                 } else if (data.mode === 'spin') {
                     clearInterval(spinInt);
-                    const idx = data.options.indexOf(data.result);
-                    const arcDeg = 360 / data.options.length;
-                    const target = currentRot + 1440 + (360 - (idx * arcDeg) - (currentRot % 360));
-                    document.getElementById('canvas').style.transition = 'transform 4s cubic-bezier(0.1, 0.7, 0.1, 1)';
-                    document.getElementById('canvas').style.transform = `rotate(${target}deg)`;
+                    const canvas = document.getElementById('canvas');
+                    
+                    // Stop Logic: Calculate target angle
+                    const numOpts = data.options.length;
+                    const arcDeg = 360 / numOpts;
+                    const targetIdx = data.options.indexOf(data.result);
+                    
+                    // Degree to move the chosen slice to the top pointer
+                    // Pointer is at -90 degrees in canvas logic
+                    const stopAt = (360 - (targetIdx * arcDeg)) - (arcDeg / 2);
+                    const finalSpin = (Math.floor(currentRot / 360) * 360) + (360 * 5) + stopAt;
+
+                    canvas.style.transition = 'transform 4s cubic-bezier(0.1, 0.7, 0.1, 1)';
+                    canvas.style.transform = `rotate(${finalSpin}deg)`;
+                    currentRot = finalSpin;
+
+                    setTimeout(() => {
+                        document.getElementById('final-result').innerText = `Jawab hai: ${data.result}!`;
+                    }, 4200);
                 }
             }
         });
